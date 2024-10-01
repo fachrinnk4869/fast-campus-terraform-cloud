@@ -6,6 +6,7 @@ resource "aws_launch_configuration" "example" {
   key_name = var.key_pair
   security_groups = [ aws_security_group.web_service.id ]
   associate_public_ip_address = false
+
   
   user_data = <<-EOF
                 #!/bin/bash
@@ -14,7 +15,7 @@ resource "aws_launch_configuration" "example" {
                 echo "Hello, World!" > index.html
                 nohup python3 -m http.server 80 &
                 EOF
-
+                
   lifecycle {
     create_before_destroy = false
   }
@@ -27,7 +28,8 @@ resource "aws_autoscaling_group" "web_service" {
   max_size             = var.instance_max_count
   health_check_type    = "ELB"
 
-  availability_zones   = var.asg_availability_zones
+  # availability_zones   = var.asg_availability_zones
+  vpc_zone_identifier  = var.subnets # Pastikan subnet ini ada di VPC yang sama dengan Security Group
   tag {
     key                 = "Name"
     value               = "web-instance-${var.environment}"
@@ -37,6 +39,7 @@ resource "aws_autoscaling_group" "web_service" {
 
 resource "aws_security_group" "web_service" {
   name = "${var.cluster_name}-${var.environment}-alb"
+  vpc_id = var.vpc_id
 
   ingress {
     from_port   = 80
