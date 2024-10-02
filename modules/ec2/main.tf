@@ -1,20 +1,24 @@
-resource "aws_launch_configuration" "example" {
+resource "aws_launch_template" "example" {
   name          = "${var.cluster_name}-${var.environment}"
   image_id      = var.ami # AMI untuk Amazon Linux 2 di ap-southeast-1, ganti sesuai kebutuhan
   instance_type = var.instance_type # Tipe instance
 
   key_name = var.key_pair
-  security_groups = [ aws_security_group.web_service.id ]
-  associate_public_ip_address = false
+
+  network_interfaces {
+    security_groups            = [aws_security_group.web_service.id]
+    associate_public_ip_address = false
+  }
 
   
-  user_data = <<-EOF
+  user_data = base64encode(<<-EOF
                 #!/bin/bash
                 apt-get update -y
                 apt-get install -y python3
                 echo "Hello, World!" > index.html
                 nohup python3 -m http.server 80 &
                 EOF
+              )
                 
   lifecycle {
     create_before_destroy = false
@@ -22,7 +26,10 @@ resource "aws_launch_configuration" "example" {
 }
 
 resource "aws_autoscaling_group" "web_service" {
-  launch_configuration = aws_launch_configuration.example.id
+  launch_template {
+    id      = aws_launch_template.example.id
+    version = "$Latest"
+  }
   target_group_arns    = [aws_lb_target_group.web_service.arn]
   min_size             = var.instance_min_count
   max_size             = var.instance_max_count
